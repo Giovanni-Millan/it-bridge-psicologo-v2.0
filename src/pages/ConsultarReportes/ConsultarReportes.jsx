@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faEye, faSearch, faTimes, faFilter } from "@fortawesome/free-solid-svg-icons";
 import { supabase } from "../../supabaseClient";
+import Avatar from "../../components/Avatar.jsx";
 
 export default function ConsultarReportes() {
   const [alumnos, setAlumnos] = useState([]);
@@ -210,9 +211,13 @@ export default function ConsultarReportes() {
                     <tr key={alumno.id} className="hover:bg-purple-50 transition-colors duration-150">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-9 w-9 rounded-full bg-purple-100 flex items-center justify-center text-purple-800 font-semibold">
-                            {(alumno.nombre?.charAt(0) || '?')}
-                          </div>
+                          <Avatar
+                            fotoUrl={alumno.foto_url}
+                            nombre={alumno.nombre}
+                            apellidoPaterno={alumno.apellido_paterno}
+                            apellidoMaterno={alumno.apellido_materno}
+                            size={36}
+                          />
                           <div className="ml-3">
                             <div className="text-sm font-medium text-gray-900">
                               {`${alumno.nombre || ''} ${alumno.apellido_paterno || ''} ${alumno.apellido_materno || ''}`.trim() || 'Sin nombre'}

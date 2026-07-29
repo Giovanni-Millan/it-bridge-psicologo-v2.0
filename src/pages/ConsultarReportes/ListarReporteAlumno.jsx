@@ -4,6 +4,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faBook } from "@fortawesome/free-solid-svg-icons";
+import Avatar from "../../components/Avatar.jsx";
 
 export default function SeguimientosPorAlumno() {
 
@@ -35,7 +36,8 @@ export default function SeguimientosPorAlumno() {
           apellido_paterno: data[0].apellido_paterno,
           apellido_materno: data[0].apellido_materno,
           carrera: data[0].carrera,
-          cuatrimestre: data[0].cuatrimestre
+          cuatrimestre: data[0].cuatrimestre,
+          foto_url: data[0].foto_url
         });
 
       }
@@ -73,11 +75,18 @@ export default function SeguimientosPorAlumno() {
 
           <div className="bg-white border border-purple-200 rounded-xl shadow-md p-6 mb-10">
 
-            <h2 className="text-2xl font-bold text-purple-800 mb-2">
-
-              {alumno.nombre} {alumno.apellido_paterno} {alumno.apellido_materno}
-
-            </h2>
+            <div className="flex items-center gap-4 mb-2">
+              <Avatar
+                fotoUrl={alumno.foto_url}
+                nombre={alumno.nombre}
+                apellidoPaterno={alumno.apellido_paterno}
+                apellidoMaterno={alumno.apellido_materno}
+                size={48}
+              />
+              <h2 className="text-2xl font-bold text-purple-800">
+                {alumno.nombre} {alumno.apellido_paterno} {alumno.apellido_materno}
+              </h2>
+            </div>
 
             <div className="flex flex-wrap gap-8 text-gray-700">
 

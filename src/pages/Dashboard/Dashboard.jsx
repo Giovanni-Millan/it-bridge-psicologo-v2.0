@@ -5,9 +5,11 @@ import { faFaceLaughWink, faArrowRightFromBracket, faBell, faSpinner, faChartLin
 import { Link } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import Swal from 'sweetalert2';
+import Avatar from '../../components/Avatar.jsx';
 
 export default function Dashboard() {
   const [avisos, setAvisos] = useState([]);
+  const [psicologo, setPsicologo] = useState(null);
   const [nombrePsicologo, setNombrePsicologo] = useState('');
   const [correo, setCorreo] = useState('');
   const [cargando, setCargando] = useState(true);
@@ -34,14 +36,15 @@ export default function Dashboard() {
     const userId = data.user.id;
     setCorreo(data.user.email);
 
-    const { data: psicologo, error: psicologoError } = await supabase
+    const { data: psicologoData, error: psicologoError } = await supabase
       .from('psicologos')
-      .select('nombre, apellido_paterno, apellido_materno')
+      .select('nombre, apellido_paterno, apellido_materno, foto_url')
       .eq('id', userId)
       .single();
 
-    if (!psicologoError && psicologo) {
-      setNombrePsicologo(`${psicologo.nombre} ${psicologo.apellido_paterno} ${psicologo.apellido_materno}`);
+    if (!psicologoError && psicologoData) {
+      setPsicologo(psicologoData);
+      setNombrePsicologo(`${psicologoData.nombre} ${psicologoData.apellido_paterno} ${psicologoData.apellido_materno}`);
     }
   };
 
@@ -170,11 +173,20 @@ export default function Dashboard() {
             </h2>
           </div>
           <div className="p-6 flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-gray-800 text-2xl font-bold">{nombrePsicologo || 'Psicólogo(a)'}</p>
-              <p className="text-gray-500 mt-1 flex items-center gap-1">
-                <span className="text-sm">📧</span> {correo}
-              </p>
+            <div className="flex items-center gap-4">
+              <Avatar
+                fotoUrl={psicologo?.foto_url}
+                nombre={psicologo?.nombre}
+                apellidoPaterno={psicologo?.apellido_paterno}
+                apellidoMaterno={psicologo?.apellido_materno}
+                size={56}
+              />
+              <div>
+                <p className="text-gray-800 text-2xl font-bold">{nombrePsicologo || 'Psicólogo(a)'}</p>
+                <p className="text-gray-500 mt-1 flex items-center gap-1">
+                  <span className="text-sm">📧</span> {correo}
+                </p>
+              </div>
             </div>
             <button
               onClick={handleLogOut}
