@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowLeft, faEye, faSearch, faTimes, faFilter } from "@fortawesome/free-solid-svg-icons";
 import { supabase } from "../../supabaseClient";
 import Avatar from "../../components/Avatar.jsx";
+import { mostrarError } from "../../utils/errorTraductor";
 
 export default function ConsultarReportes() {
   const [alumnos, setAlumnos] = useState([]);
@@ -24,7 +25,7 @@ export default function ConsultarReportes() {
       .gt("total_seguimientos", 0);
 
     if (error) {
-      console.error("Error cargando alumnos:", error.message);
+      mostrarError(error, "cargar los reportes");
       setLoading(false);
       return;
     }
