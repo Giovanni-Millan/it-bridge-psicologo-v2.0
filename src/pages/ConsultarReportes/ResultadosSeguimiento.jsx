@@ -156,11 +156,19 @@ export default function ResultadosSeguimiento() {
         }
       );
       const text = await response.text();
-      if (!text) {
-        setInterpretacion("No se recibió respuesta del servidor.");
+      if (!response.ok || !text) {
+        console.error("Respuesta no válida del webhook de n8n:", response.status, text);
+        setInterpretacion("No se pudo obtener la interpretación en este momento. Intenta de nuevo más tarde.");
         return;
       }
-      const resultado = JSON.parse(text);
+      let resultado;
+      try {
+        resultado = JSON.parse(text);
+      } catch (parseErr) {
+        console.error("Respuesta del webhook de n8n no es JSON válido:", text);
+        setInterpretacion("No se pudo obtener la interpretación en este momento. Intenta de nuevo más tarde.");
+        return;
+      }
       let mensajeIA = "";
       if (resultado.resultado) {
         mensajeIA = resultado.resultado;
@@ -174,13 +182,19 @@ export default function ResultadosSeguimiento() {
       else if (resultado.generations) {
         mensajeIA = resultado.generations?.[0]?.[0]?.text || "";
       }
-      else {
-        mensajeIA = JSON.stringify(resultado);
+      if (!mensajeIA) {
+        // El webhook respondió (200 OK, JSON válido) pero sin ninguno de los
+        // campos esperados — típicamente un error interno del workflow de n8n
+        // (ej. {"message":"Error in workflow"}), nunca se debe mostrar ese
+        // JSON crudo al psicólogo.
+        console.error("Respuesta de n8n sin campo de interpretación reconocido:", resultado);
+        setInterpretacion("No se pudo obtener la interpretación en este momento. Intenta de nuevo más tarde.");
+        return;
       }
       setInterpretacion(mensajeIA);
     } catch (error) {
       console.error("Error enviando a n8n:", error);
-      setInterpretacion("No se pudo obtener la interpretación.");
+      setInterpretacion("No se pudo obtener la interpretación en este momento. Intenta de nuevo más tarde.");
     } finally {
       setAnalizando(false);
     }
