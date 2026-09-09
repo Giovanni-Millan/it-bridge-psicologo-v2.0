@@ -27,6 +27,8 @@ import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import Swal from "sweetalert2";
 import ReactMarkdown from "react-markdown";
+import { calcularTMMS24 } from "../../utils/tmms24";
+import SeguimientoAlternativoTMMS24 from "../../components/SeguimientoAlternativoTMMS24";
 
 export default function ResultadosSeguimiento() {
   const { id } = useParams();
@@ -36,6 +38,13 @@ export default function ResultadosSeguimiento() {
   const [loading, setLoading] = useState(true);
   const [interpretacion, setInterpretacion] = useState("");
   const [analizando, setAnalizando] = useState(false);
+  const [fallbackTMMS24, setFallbackTMMS24] = useState(null);
+
+  // Tiempo máximo de espera a la IA (n8n) antes de mostrar el cálculo alterno.
+  // El flujo de n8n nunca debe dejar al psicólogo sin resultado: si tarda
+  // demasiado o falla, se calcula el TMMS-24 localmente con las respuestas
+  // ya cargadas (que no dependen de ningún servicio externo).
+  const TIMEOUT_IA_MS = 25000;
 
   const stylesPDF = StyleSheet.create({
   page: {
@@ -88,31 +97,33 @@ export default function ResultadosSeguimiento() {
 });
 
 
+  // Texto exacto del TMMS-24 (debe coincidir con bridge-alumno-front/RealizarSeguimientoEmocional.jsx):
+  // reactivo_1 a reactivo_8 = Atención emocional, 9 a 16 = Claridad emocional, 17 a 24 = Reparación emocional.
   const preguntas = [
-    "Me siento triste o deprimido con frecuencia",
-    "Tengo dificultades para concentrarme en mis estudios",
-    "Me siento cansado o sin energía la mayor parte del tiempo",
-    "Me cuesta dormir o descansar adecuadamente",
-    "Me siento estresado por mis responsabilidades académicas",
-    "Siento ansiedad antes de exámenes o entregas",
-    "Me siento desmotivado respecto a mis estudios",
-    "Tengo problemas para organizar mi tiempo",
-    "Me siento abrumado por la carga de trabajo",
-    "Tengo dificultades para relacionarme con compañeros",
-    "Me siento apoyado por mis profesores",
-    "Me siento apoyado por mi familia",
-    "Tengo problemas personales que afectan mi rendimiento",
-    "Me siento satisfecho con mi progreso académico",
-    "Me cuesta participar en clase",
-    "Siento que mis estudios afectan mi bienestar emocional",
-    "Me siento confiado en mis habilidades académicas",
-    "Me preocupa mi futuro académico",
-    "Me siento motivado para continuar mis estudios",
-    "Tengo dificultades económicas que afectan mis estudios",
-    "Me siento cómodo pidiendo ayuda cuando la necesito",
-    "Siento presión por obtener buenas calificaciones",
-    "Me siento optimista respecto a mi formación profesional",
-    "Considero que mi salud emocional es buena"
+    "Presto mucha atención a los sentimientos.",
+    "Normalmente me preocupo mucho por lo que siento.",
+    "Normalmente dedico tiempo a pensar en mis emociones.",
+    "Pienso que merece la pena prestar atención a mis emociones y estado de ánimo.",
+    "Dejo que mis sentimientos afecten a mis pensamientos.",
+    "Pienso en mi estado de ánimo constantemente.",
+    "A menudo pienso en mis sentimientos.",
+    "Presto mucha atención a cómo me siento.",
+    "Tengo claros mis sentimientos.",
+    "Frecuentemente puedo definir mis sentimientos.",
+    "Casi siempre sé cómo me siento.",
+    "Normalmente conozco mis sentimientos sobre las personas.",
+    "A menudo me doy cuenta de mis sentimientos en diferentes situaciones.",
+    "Siempre puedo decir cómo me siento.",
+    "A veces puedo decir cuáles son mis emociones.",
+    "Puedo llegar a comprender mis sentimientos.",
+    "Aunque a veces me siento triste, suelo tener una visión optimista.",
+    "Aunque me sienta mal, procuro pensar en cosas agradables.",
+    "Cuando estoy triste, pienso en todos los placeres de la vida.",
+    "Intento tener pensamientos positivos aunque me sienta mal.",
+    "Si doy demasiadas vueltas a las cosas, complicándolas, trato de calmarme.",
+    "Me preocupo por tener un buen estado de ánimo.",
+    "Tengo mucha energía cuando me siento feliz.",
+    "Cuando estoy enfadado intento cambiar mi estado de ánimo."
   ];
 
   useEffect(() => {
@@ -137,8 +148,22 @@ export default function ResultadosSeguimiento() {
     setLoading(false);
   }
 
+  // Si la IA no responde bien (o no responde a tiempo), se calcula el
+  // TMMS-24 localmente con las mismas respuestas para que el psicólogo
+  // nunca se quede sin resultado del seguimiento.
+  function activarFallbackTMMS24(datosTest) {
+    try {
+      const resultado = calcularTMMS24(datosTest);
+      setFallbackTMMS24(resultado);
+    } catch (calcError) {
+      console.error("No se pudo calcular el TMMS-24 alterno:", calcError);
+    }
+  }
+
   async function enviarAN8n(datosTest) {
     if (!datosTest) return;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_IA_MS);
     try {
       setAnalizando(true);
       const respuestas = {};
@@ -152,13 +177,14 @@ export default function ResultadosSeguimiento() {
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ respuestas })
+          body: JSON.stringify({ respuestas }),
+          signal: controller.signal
         }
       );
       const text = await response.text();
       if (!response.ok || !text) {
         console.error("Respuesta no válida del webhook de n8n:", response.status, text);
-        setInterpretacion("No se pudo obtener la interpretación en este momento. Intenta de nuevo más tarde.");
+        activarFallbackTMMS24(datosTest);
         return;
       }
       let resultado;
@@ -166,7 +192,7 @@ export default function ResultadosSeguimiento() {
         resultado = JSON.parse(text);
       } catch (parseErr) {
         console.error("Respuesta del webhook de n8n no es JSON válido:", text);
-        setInterpretacion("No se pudo obtener la interpretación en este momento. Intenta de nuevo más tarde.");
+        activarFallbackTMMS24(datosTest);
         return;
       }
       let mensajeIA = "";
@@ -188,14 +214,19 @@ export default function ResultadosSeguimiento() {
         // (ej. {"message":"Error in workflow"}), nunca se debe mostrar ese
         // JSON crudo al psicólogo.
         console.error("Respuesta de n8n sin campo de interpretación reconocido:", resultado);
-        setInterpretacion("No se pudo obtener la interpretación en este momento. Intenta de nuevo más tarde.");
+        activarFallbackTMMS24(datosTest);
         return;
       }
       setInterpretacion(mensajeIA);
     } catch (error) {
-      console.error("Error enviando a n8n:", error);
-      setInterpretacion("No se pudo obtener la interpretación en este momento. Intenta de nuevo más tarde.");
+      if (error?.name === "AbortError") {
+        console.error(`El webhook de n8n no respondió en ${TIMEOUT_IA_MS / 1000}s, se usa el cálculo alterno.`);
+      } else {
+        console.error("Error enviando a n8n:", error);
+      }
+      activarFallbackTMMS24(datosTest);
     } finally {
+      clearTimeout(timeoutId);
       setAnalizando(false);
     }
   }
@@ -623,6 +654,9 @@ const exportarPDF = () => {
                   {interpretacion}
                 </ReactMarkdown>
               </div>
+            )}
+            {!analizando && !interpretacion && fallbackTMMS24 && (
+              <SeguimientoAlternativoTMMS24 resultado={fallbackTMMS24} />
             )}
           </div>
         </div>
