@@ -171,7 +171,10 @@ export default function ResultadosSeguimiento() {
         respuestas[`reactivo_${i}`] = datosTest[`reactivo_${i}`];
       }
       const response = await fetch(
-        "https://n8n.gio-webdev.com/webhook/1934d205-d5f1-4d53-8ed6-7e9b3386acd0",
+        // URL del webhook de n8n configurable por entorno (.env -> VITE_N8N_WEBHOOK_URL);
+        // si no está definida se usa el servidor original.
+        import.meta.env.VITE_N8N_WEBHOOK_URL ||
+          "https://n8n.gio-webdev.com/webhook/1934d205-d5f1-4d53-8ed6-7e9b3386acd0",
         {
           method: "POST",
           headers: {
