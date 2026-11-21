@@ -41,10 +41,15 @@ export default function RutaProtegida({ rol }) {
   // El Footer se monta aquí a propósito: este componente solo se renderiza
   // una vez hay sesión válida, así que el Login (fuera de RutaProtegida)
   // nunca lo ve.
+  // Contenedor de al menos el alto de la pantalla con el contenido en flex-1:
+  // en pantallas con poco contenido el pie se queda pegado abajo (antes
+  // quedaba flotando a media pantalla con espacio en blanco debajo).
   return (
-    <>
-      <Outlet />
+    <div className="min-h-screen flex flex-col">
+      <div className="flex-1">
+        <Outlet />
+      </div>
       <Footer />
-    </>
+    </div>
   );
 }
